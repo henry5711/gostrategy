@@ -2,44 +2,37 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Enums\Status;
 use App\Http\Controllers\Controller;
-use App\Models\AuthToken;
-use App\Models\Customer;
-use App\Traits\ApiResponseTrait;
-use Illuminate\Http\Request;
+use App\Http\Requests\Auth\LoginRequest;
+use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
-    use ApiResponseTrait;
-
-    public function login(Request $request)
+    /**
+     * Login con email/password. El token de vida limitada lo emite Sanctum.
+     */
+    public function login(LoginRequest $request)
     {
-        try {
-            $customer = Customer::where('email', $request->email)->first();
+        $user = User::where('email', $request->email)->first();
 
-            if (! $customer || $customer->status !== Status::Active || ! Hash::check($request->password, $customer->password)) {
-                return $this->error('Credenciales inválidas.', 401);
-            }
-
-            $loginAt = now();
-
-            // Token = email + fecha/hora del login + random(200-500), todo en SHA1.
-            $token = sha1($customer->email.$loginAt->format('YmdHis').random_int(200, 500));
-
-            $authToken = AuthToken::create([
-                'customer_id' => $customer->id,
-                'token' => $token,
-                'expires_at' => $loginAt->clone()->addMinutes((int) config('api.token_ttl_minutes')),
-            ]);
-        } catch (\Exception $e) {
-            return $this->error('Error interno al iniciar sesión.', 500, $e->getMessage());
+        if (! $user || ! $user->password || ! Hash::check($request->password, $user->password)) {
+            return response()->json(['success' => false, 'message' => 'Credenciales inválidas.', 'data' => null], 401);
         }
 
-        return $this->success([
-            'token' => $authToken->token,
-            'expires_at' => $authToken->expires_at->toDateTimeString(),
-        ], 'Inicio de sesión exitoso');
+        $token = $user->createToken(
+            'api-token',
+            ['*'],
+            now()->addMinutes((int) config('sanctum.expiration', 60))
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Inicio de sesión exitoso',
+            'data' => [
+                'token' => $token->plainTextToken,
+                'expires_at' => $token->accessToken->expires_at->toDateTimeString(),
+            ],
+        ]);
     }
 }

@@ -15,19 +15,26 @@ export function updateTheme(value: Appearance): void {
         return;
     }
 
+    let isDark: boolean;
+
     if (value === 'system') {
         const mediaQueryList = window.matchMedia(
             '(prefers-color-scheme: dark)',
         );
-        const systemTheme = mediaQueryList.matches ? 'dark' : 'light';
-
-        document.documentElement.classList.toggle(
-            'dark',
-            systemTheme === 'dark',
-        );
+        isDark = mediaQueryList.matches;
     } else {
-        document.documentElement.classList.toggle('dark', value === 'dark');
+        isDark = value === 'dark';
     }
+
+    document.documentElement.classList.toggle('dark', isDark);
+
+    // Keep Bootstrap's own dark color mode (used by legacy pages that still
+    // import bootstrap.css) in sync with the app's theme, so tables, cards,
+    // modals, etc. don't render with a hardcoded white/light background.
+    document.documentElement.setAttribute(
+        'data-bs-theme',
+        isDark ? 'dark' : 'light',
+    );
 }
 
 const setCookie = (name: string, value: string, days = 365) => {

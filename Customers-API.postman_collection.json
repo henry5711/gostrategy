@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "Customers API",
-    "description": "Coleccion para probar los servicios de autenticacion, Customers, Regions y Communes (registrar, consultar, actualizar, eliminar logico, recuperar).",
+    "name": "Users API",
+    "description": "CRUD USER",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -22,7 +22,7 @@
       "value": "henryrom57@example.com"
     },
     {
-      "key": "customer_id",
+      "key": "User_id",
       "value": ""
     },
     {
@@ -46,7 +46,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// guarda el token en la variable de coleccion para usarlo en los demas requests",
+                  "// guarda el token Sanctum en la variable de coleccion para usarlo en los demas requests",
                   "if (pm.response.code === 200) {",
                   "    const body = pm.response.json();",
                   "    pm.collectionVariables.set('token', body.data.token);",
@@ -70,7 +70,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "auth", "login"]
             },
-            "description": "Customer de prueba creado por el DatabaseSeeder: test@example.com / password. El login es contra customers, no contra users. El token vuelve en data.token y vence segun AUTH_TOKEN_TTL_MINUTES."
+            "description": "Usuario de prueba creado por el DatabaseSeeder: test@example.com / password. Emite un Personal Access Token , con expiracion segun config('sanctum.expiration')."
           }
         },
         {
@@ -96,20 +96,19 @@
       ]
     },
     {
-      "name": "Customers",
+      "name": "Users",
       "item": [
         {
-          "name": "Registrar Customer",
+          "name": "Registrar User",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// guarda el id del customer creado para usarlo en editar/eliminar/recuperar",
                   "if (pm.response.code === 201) {",
                   "    const body = pm.response.json();",
-                  "    pm.collectionVariables.set('customer_id', body.data.id);",
+                  "    pm.collectionVariables.set('User_id', body.data.id);",
                   "}"
                 ]
               }
@@ -124,18 +123,18 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"dni\": \"{{dni}}\",\n  \"email\": \"{{email}}\",\n  \"password\": \"password123\",\n  \"name\": \"Henry\",\n  \"last_name\": \"Romero\",\n  \"address\": \"Mi casa\",\n  \"region_id\": 1,\n  \"commune_id\": 1\n}"
+              "raw": "{\n  \"dni\": \"{{dni}}\",\n  \"email\": \"{{email}}\",\n  \"password\": \"unaClaveSegura123\",\n  \"name\": \"Henry\",\n  \"last_name\": \"Romero\",\n  \"address\": \"Mi casa\",\n  \"region_id\": 1,\n  \"commune_id\": 1\n}"
             },
             "url": {
-              "raw": "{{base_url}}/api/customers",
+              "raw": "{{base_url}}/api/users",
               "host": ["{{base_url}}"],
-              "path": ["api", "customers"]
+              "path": ["api", "Users"]
             },
-            "description": "region_id/commune_id deben existir y estar relacionados (correr el seeder crea las regiones/comunas de ejemplo). dni y email no se pueden repetir."
+            "description": "region_id/commune_id deben existir y estar relacionados (correr el seeder crea las regiones/comunas de ejemplo). dni y email no se pueden repetir. password es obligatorio y se guarda hasheado. Validado por StoreUserRequest."
           }
         },
         {
-          "name": "Registrar Customer - Commune no relacionada (422)",
+          "name": "Registrar User - Commune no relacionada (422)",
           "request": {
             "method": "POST",
             "header": [
@@ -145,18 +144,18 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"dni\": \"V99999999\",\n  \"email\": \"otro@example.com\",\n  \"password\": \"password123\",\n  \"name\": \"Otro\",\n  \"last_name\": \"Persona\",\n  \"region_id\": 1,\n  \"commune_id\": 4\n}"
+              "raw": "{\n  \"dni\": \"V99999999\",\n  \"email\": \"otro@example.com\",\n  \"password\": \"unaClaveSegura123\",\n  \"name\": \"Otro\",\n  \"last_name\": \"Persona\",\n  \"region_id\": 1,\n  \"commune_id\": 4\n}"
             },
             "url": {
-              "raw": "{{base_url}}/api/customers",
+              "raw": "{{base_url}}/api/users",
               "host": ["{{base_url}}"],
-              "path": ["api", "customers"]
+              "path": ["api", "Users"]
             },
             "description": "commune_id 4 pertenece a otra region (segun el RegionSeeder). Debe responder 422."
           }
         },
         {
-          "name": "Consultar Customer por dni",
+          "name": "Listar Users",
           "request": {
             "method": "GET",
             "header": [
@@ -164,16 +163,15 @@
               { "key": "Authorization", "value": "Bearer {{token}}" }
             ],
             "url": {
-              "raw": "{{base_url}}/api/customers?dni={{dni}}",
+              "raw": "{{base_url}}/api/users",
               "host": ["{{base_url}}"],
-              "path": ["api", "customers"],
-              "query": [{ "key": "dni", "value": "{{dni}}" }]
+              "path": ["api", "Users"]
             },
-            "description": "Solo devuelve customers con status Activo (A). Si esta desactivado o eliminado, responde 404."
+            "description": "Lista Users. Todos los filtros son opcionales via query string (?dni=, ?email=, ?status=A, ?region_id=, ?commune_id=, ?name=, ?last_name=), nada es obligatorio. Sin filtros."
           }
         },
         {
-          "name": "Consultar Customer por email",
+          "name": "Listar Users - filtrado por status",
           "request": {
             "method": "GET",
             "header": [
@@ -181,45 +179,32 @@
               { "key": "Authorization", "value": "Bearer {{token}}" }
             ],
             "url": {
-              "raw": "{{base_url}}/api/customers?email={{email}}",
+              "raw": "{{base_url}}/api/users?status=A",
               "host": ["{{base_url}}"],
-              "path": ["api", "customers"],
-              "query": [{ "key": "email", "value": "{{email}}" }]
-            }
+              "path": ["api", "users"],
+              "query": [{ "key": "status", "value": "A" }]
+            },
+            "description": "Ejemplo de filtro dinamico via User::scopeFilter(): status es un campo opcional mas, no un scope forzado aparte."
           }
         },
         {
-          "name": "Eliminar Customer (logico)",
+          "name": "Consultar User por id",
           "request": {
-            "method": "DELETE",
+            "method": "GET",
             "header": [
               { "key": "Accept", "value": "application/json" },
               { "key": "Authorization", "value": "Bearer {{token}}" }
             ],
             "url": {
-              "raw": "{{base_url}}/api/customers/{{customer_id}}",
+              "raw": "{{base_url}}/api/users/{{User_id}}",
               "host": ["{{base_url}}"],
-              "path": ["api", "customers", "{{customer_id}}"]
+              "path": ["api", "Users", "{{User_id}}"]
             },
-            "description": "El id va en la URL (route model binding de Laravel). Marca el customer como trash. Ejecutar dos veces seguidas para ver el mensaje 'Registro no existe' en la segunda."
+            "description": "Busca por id directo."
           }
         },
         {
-          "name": "Customers sin token (401)",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "url": {
-              "raw": "{{base_url}}/api/customers?dni={{dni}}",
-              "host": ["{{base_url}}"],
-              "path": ["api", "customers"],
-              "query": [{ "key": "dni", "value": "{{dni}}" }]
-            },
-            "description": "Sin header Authorization. Debe responder 401."
-          }
-        },
-        {
-          "name": "Actualizar Customer",
+          "name": "Editar User",
           "request": {
             "method": "POST",
             "header": [
@@ -232,15 +217,31 @@
               "raw": "{\n  \"address\": \"Nueva direccion 123\",\n  \"region_id\": 1,\n  \"commune_id\": 2\n}"
             },
             "url": {
-              "raw": "{{base_url}}/api/customers/{{customer_id}}/update",
+              "raw": "{{base_url}}/api/users/{{User_id}}/update",
               "host": ["{{base_url}}"],
-              "path": ["api", "customers", "{{customer_id}}", "update"]
+              "path": ["api", "Users", "{{User_id}}", "update"]
             },
-            "description": "El id (route model binding) identifica al customer, no se manda en el body. Solo se envian los campos que se quieren cambiar. No funciona sobre un customer en trash."
+            "description": ""
           }
         },
         {
-          "name": "Recuperar/activar Customer",
+          "name": "Eliminar User (logico)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/users/{{User_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "Users", "{{User_id}}"]
+            },
+            "description": "deleted_at via Eloquent SoftDeletes. Ejecutar dos veces seguidas para ver el mensaje 'Registro no existe' en la segunda."
+          }
+        },
+        {
+          "name": "Recuperar/activar User",
           "request": {
             "method": "POST",
             "header": [
@@ -248,53 +249,24 @@
               { "key": "Authorization", "value": "Bearer {{token}}" }
             ],
             "url": {
-              "raw": "{{base_url}}/api/customers/{{customer_id}}/restore",
+              "raw": "{{base_url}}/api/users/{{User_id}}/restore",
               "host": ["{{base_url}}"],
-              "path": ["api", "customers", "{{customer_id}}", "restore"]
+              "path": ["api", "Users", "{{User_id}}", "restore"]
             },
-            "description": "Saca al customer del trash y lo deja Activo (A). Solo funciona si el customer esta actualmente en trash; si no, responde 422."
+            "description": "Saca al User del trash y lo deja Activo (A). Solo funciona si el User esta actualmente en trash; si no, responde 422."
           }
         },
         {
-          "name": "Cambiar contraseña",
+          "name": "Users sin token (401)",
           "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"current_password\": \"password123\",\n  \"password\": \"password456\"\n}"
-            },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
             "url": {
-              "raw": "{{base_url}}/api/customers/{{customer_id}}/change-password",
+              "raw": "{{base_url}}/api/users/{{User_id}}",
               "host": ["{{base_url}}"],
-              "path": ["api", "customers", "{{customer_id}}", "change-password"]
+              "path": ["api", "Users", "{{User_id}}"]
             },
-            "description": "El id (route model binding) identifica al customer. current_password debe coincidir con la contraseña actual (hash). password es la nueva contraseña (min 8, distinta de la actual)."
-          }
-        },
-        {
-          "name": "Cambiar contraseña - Actual incorrecta (422)",
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"current_password\": \"password-incorrecta\",\n  \"password\": \"password456\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/customers/{{customer_id}}/change-password",
-              "host": ["{{base_url}}"],
-              "path": ["api", "customers", "{{customer_id}}", "change-password"]
-            },
-            "description": "current_password no coincide con el hash guardado. Debe responder 422."
+            "description": "Sin header Authorization. Debe responder 401."
           }
         }
       ]
@@ -310,7 +282,6 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// guarda el id de la region creada para usarla en editar/eliminar/recuperar y en Communes",
                   "if (pm.response.code === 201) {",
                   "    const body = pm.response.json();",
                   "    pm.collectionVariables.set('region_id', body.data.id);",
@@ -328,14 +299,35 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Region de Prueba\",\n  \"description\": \"Creada desde Postman\"\n}"
+              "raw": "{\n  \"name\": \"Metropolitana\",\n  \"description\": \"Region metropolitana\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/regions",
               "host": ["{{base_url}}"],
               "path": ["api", "regions"]
             },
-            "description": "El nombre no se puede repetir. Se crea con status Activo (A)."
+            "description": "name es obligatorio y unico. Se crea con status Activo (A) por defecto. Validado por StoreRegionRequest."
+          }
+        },
+        {
+          "name": "Registrar Region - Nombre repetido (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Metropolitana\",\n  \"description\": \"Duplicada\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/regions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "regions"]
+            },
+            "description": "name debe ser unico en regions. Debe responder 422."
           }
         },
         {
@@ -351,7 +343,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "regions"]
             },
-            "description": "Acepta filtros opcionales por query string: name (like) y status (A/I/trash)."
+            "description": "Lista Regions. Filtros opcionales via query string (?name=, ?status=A). Sin filtros."
           }
         },
         {
@@ -367,11 +359,11 @@
               "host": ["{{base_url}}"],
               "path": ["api", "regions", "{{region_id}}"]
             },
-            "description": "Si esta en trash o no existe, responde 404."
+            "description": "Busca por id directo."
           }
         },
         {
-          "name": "Actualizar Region",
+          "name": "Editar Region",
           "request": {
             "method": "POST",
             "header": [
@@ -381,18 +373,18 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Region de Prueba Editada\",\n  \"description\": \"Descripcion actualizada\"\n}"
+              "raw": "{\n  \"name\": \"Metropolitana\",\n  \"description\": \"Descripcion actualizada\",\n  \"status\": \"A\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/regions/{{region_id}}/update",
               "host": ["{{base_url}}"],
               "path": ["api", "regions", "{{region_id}}", "update"]
             },
-            "description": "El id (route model binding) identifica la region. Solo se envian los campos que se quieren cambiar. No funciona sobre una region en trash."
+            "description": "Todos los campos son opcionales (sometimes). Validado por UpdateRegionRequest."
           }
         },
         {
-          "name": "Eliminar Region (logico)",
+          "name": "Eliminar Region",
           "request": {
             "method": "DELETE",
             "header": [
@@ -404,23 +396,20 @@
               "host": ["{{base_url}}"],
               "path": ["api", "regions", "{{region_id}}"]
             },
-            "description": "Marca la region como trash. Ejecutar dos veces seguidas para ver el mensaje 'Región no existe' en la segunda."
+            "description": "Elimina la region. Si tiene communes asociadas responde 422."
           }
         },
         {
-          "name": "Recuperar/activar Region",
+          "name": "Regions sin token (401)",
           "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
-            ],
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
             "url": {
-              "raw": "{{base_url}}/api/regions/{{region_id}}/restore",
+              "raw": "{{base_url}}/api/regions",
               "host": ["{{base_url}}"],
-              "path": ["api", "regions", "{{region_id}}", "restore"]
+              "path": ["api", "regions"]
             },
-            "description": "Saca la region del trash y la deja Activa (A). Solo funciona si esta actualmente en trash; si no, responde 422."
+            "description": "Sin header Authorization. Debe responder 401."
           }
         }
       ]
@@ -436,7 +425,6 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// guarda el id de la commune creada para usarla en editar/eliminar/recuperar",
                   "if (pm.response.code === 201) {",
                   "    const body = pm.response.json();",
                   "    pm.collectionVariables.set('commune_id', body.data.id);",
@@ -454,14 +442,35 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"region_id\": {{region_id}},\n  \"name\": \"Commune de Prueba\",\n  \"description\": \"Creada desde Postman\"\n}"
+              "raw": "{\n  \"region_id\": {{region_id}},\n  \"name\": \"Providencia\",\n  \"description\": \"Comuna de Providencia\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/communes",
               "host": ["{{base_url}}"],
               "path": ["api", "communes"]
             },
-            "description": "region_id debe existir. El nombre no se puede repetir dentro de la misma region. Se crea con status Activo (A)."
+            "description": "region_id debe existir en regions. name es obligatorio. Se crea con status Activo (A) por defecto. Validado por StoreCommuneRequest."
+          }
+        },
+        {
+          "name": "Registrar Commune - Region inexistente (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"region_id\": 999999,\n  \"name\": \"Comuna invalida\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/communes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "communes"]
+            },
+            "description": "region_id 999999 no existe. Debe responder 422."
           }
         },
         {
@@ -477,11 +486,11 @@
               "host": ["{{base_url}}"],
               "path": ["api", "communes"]
             },
-            "description": "Acepta filtros opcionales por query string: name (like), region_id y status (A/I/trash)."
+            "description": "Lista Communes con su region relacionada. Filtros opcionales via query string (?name=, ?region_id=, ?status=A). Sin filtros."
           }
         },
         {
-          "name": "Listar Communes por Region",
+          "name": "Listar Communes - filtrado por region_id",
           "request": {
             "method": "GET",
             "header": [
@@ -493,7 +502,8 @@
               "host": ["{{base_url}}"],
               "path": ["api", "communes"],
               "query": [{ "key": "region_id", "value": "{{region_id}}" }]
-            }
+            },
+            "description": "Ejemplo de filtro por region_id."
           }
         },
         {
@@ -509,11 +519,11 @@
               "host": ["{{base_url}}"],
               "path": ["api", "communes", "{{commune_id}}"]
             },
-            "description": "Si esta en trash o no existe, responde 404."
+            "description": "Busca por id directo, incluye la region relacionada."
           }
         },
         {
-          "name": "Actualizar Commune",
+          "name": "Editar Commune",
           "request": {
             "method": "POST",
             "header": [
@@ -523,18 +533,18 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Commune de Prueba Editada\",\n  \"description\": \"Descripcion actualizada\"\n}"
+              "raw": "{\n  \"name\": \"Providencia\",\n  \"description\": \"Descripcion actualizada\",\n  \"status\": \"A\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/communes/{{commune_id}}/update",
               "host": ["{{base_url}}"],
               "path": ["api", "communes", "{{commune_id}}", "update"]
             },
-            "description": "El id (route model binding) identifica la commune. Solo se envian los campos que se quieren cambiar. No funciona sobre una commune en trash."
+            "description": "Todos los campos son opcionales (sometimes). Validado por UpdateCommuneRequest."
           }
         },
         {
-          "name": "Eliminar Commune (logico)",
+          "name": "Eliminar Commune",
           "request": {
             "method": "DELETE",
             "header": [
@@ -546,23 +556,20 @@
               "host": ["{{base_url}}"],
               "path": ["api", "communes", "{{commune_id}}"]
             },
-            "description": "Marca la commune como trash. Ejecutar dos veces seguidas para ver el mensaje 'Commune no existe' en la segunda."
+            "description": "Elimina la commune. Si tiene usuarios asociados (incluyendo soft-deleted) responde 422."
           }
         },
         {
-          "name": "Recuperar/activar Commune",
+          "name": "Communes sin token (401)",
           "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
-            ],
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
             "url": {
-              "raw": "{{base_url}}/api/communes/{{commune_id}}/restore",
+              "raw": "{{base_url}}/api/communes",
               "host": ["{{base_url}}"],
-              "path": ["api", "communes", "{{commune_id}}", "restore"]
+              "path": ["api", "communes"]
             },
-            "description": "Saca la commune del trash y la deja Activa (A). Solo funciona si esta actualmente en trash; si no, responde 422."
+            "description": "Sin header Authorization. Debe responder 401."
           }
         }
       ]

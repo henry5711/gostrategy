@@ -12,7 +12,7 @@ class RegionSeeder extends Seeder
         $regions = [
             'Andes' => ['Tachira', 'Merida', 'Trujillo'],
             'Central' => ['Caracas', 'Miranda'],
-            'Orinete' => ['Anzoategui', 'Sucre'],
+            'Oriente' => ['Anzoategui', 'Sucre'],
         ];
 
         foreach ($regions as $regionName => $communes) {

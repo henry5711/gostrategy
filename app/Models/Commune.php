@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\Status;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Commune extends Model
 {
@@ -27,22 +28,8 @@ class Commune extends Model
         return $this->belongsTo(Region::class);
     }
 
-    public function scopeActive($query)
+    public function users(): HasMany
     {
-        return $query->where('status', Status::Active->value);
-    }
-
-    public function scopeFilter($query, $request)
-    {
-        return $query
-            ->when($request->name, function ($query, $name) {
-                return $query->where('name', 'like', "%{$name}%");
-            })
-            ->when($request->region_id, function ($query, $region_id) {
-                return $query->where('region_id', $region_id);
-            })
-            ->when($request->status, function ($query, $status) {
-                return $query->where('status', $status);
-            });
+        return $this->hasMany(User::class);
     }
 }

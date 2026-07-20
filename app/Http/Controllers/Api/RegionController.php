@@ -4,49 +4,59 @@ namespace App\Http\Controllers\Api;
 
 use App\Enums\Status;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Region\StoreRegionRequest;
+use App\Http\Requests\Region\UpdateRegionRequest;
+use App\Http\Resources\RegionResource;
 use App\Models\Region;
-use App\Traits\ApiResponseTrait;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class RegionController extends Controller
 {
-    use ApiResponseTrait;
-
     /**
-     * Lista las regiones, opcionalmente filtradas por name/status.
+     * Lista Regions.
      */
     public function index(Request $request)
     {
-        $regions = Region::filter($request)->get();
+        $Regions = Region::query()
+            ->when($request->name, fn ($query, $name) => $query->where('name', 'like', "%{$name}%"))
+            ->when($request->status, fn ($query, $status) => $query->where('status', $status))
+            ->get();
 
-        return $this->success($regions, 'Regiones encontradas.');
+        return response()->json([
+            'success' => true,
+            'message' => 'Regions encontrados.',
+            'data' => RegionResource::collection($Regions),
+        ]);
     }
 
     /**
-     * Consulta una región por su id.
+     * Consulta un Region por su id.
      */
     public function show($id)
     {
-        $region = Region::find($id);
+        $Region = Region::find($id);
 
-        if (! $region || $region->status === Status::Trash) {
-            return $this->error('Región no existe', 404);
+        if (! $Region) {
+            return response()->json(['success' => false, 'message' => 'Region no encontrado.', 'data' => null], 404);
         }
 
-        return $this->success($region, 'Región encontrada.');
+        return response()->json([
+            'success' => true,
+            'message' => 'Region encontrado.',
+            'data' => new RegionResource($Region),
+        ]);
     }
 
     /**
-     * Registra una región nueva. El nombre único ya se valida en el
-     * middleware validate.region.store antes de llegar aquí.
+     * Registra un Region nuevo.
      */
-    public function store(Request $request)
+    public function store(StoreRegionRequest $request)
     {
         try {
             DB::beginTransaction();
 
-            $region = Region::create([
+            $Region = Region::create([
                 'name' => $request->name,
                 'description' => $request->description,
                 'status' => Status::Active->value,
@@ -56,93 +66,67 @@ class RegionController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
 
-            return $this->error('Error interno al registrar la región.', 500, $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Error interno al registrar el Region.', 'data' => $e->getMessage()], 500);
         }
 
-        return $this->success($region, 'Región registrada correctamente.', 201);
+        return response()->json([
+            'success' => true,
+            'message' => 'Region registrado correctamente.',
+            'data' => new RegionResource($Region),
+        ], 201);
     }
 
     /**
-     * Actualiza los datos de una región existente identificada por su id.
+     * Edita los datos de un Region existente
      */
-    public function update(Request $request, $id)
+    public function update(UpdateRegionRequest $request, $id)
     {
-        $region = Region::find($id);
+        $Region = Region::find($id);
 
-        if (! $region || $region->status === Status::Trash) {
-            return $this->error('Región no existe', 404);
+        if (! $Region) {
+            return response()->json(['success' => false, 'message' => 'Registro no existe', 'data' => null], 404);
         }
 
         try {
             DB::beginTransaction();
 
-            $region->update($request->only(['name', 'description', 'status']));
+            $Region->update($request->only(['name', 'description', 'status']));
 
             DB::commit();
         } catch (\Exception $e) {
             DB::rollBack();
 
-            return $this->error('Error interno al actualizar la región.', 500, $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Error interno al editar el Region.', 'data' => $e->getMessage()], 500);
         }
 
-        return $this->success($region, 'Región actualizada correctamente.');
+        return response()->json([
+            'success' => true,
+            'message' => 'Region actualizado correctamente.',
+            'data' => new RegionResource($Region),
+        ]);
     }
 
     /**
-     * Elimina lógicamente una región identificada por su id (la pasa a status trash).
+     * Elimina un Region
      */
     public function destroy($id)
     {
-        $region = Region::find($id);
+        $Region = Region::find($id);
 
-        if (! $region || $region->status === Status::Trash) {
-            return $this->error('Región no existe', 404);
+        if (! $Region) {
+            return response()->json(['success' => false, 'message' => 'Registro no existe', 'data' => null], 404);
+        }
+
+        if ($Region->communes()->exists()) {
+            return response()->json(['success' => false, 'message' => 'No se puede eliminar el Region porque tiene communes asociadas.', 'data' => null], 422);
         }
 
         try {
-            DB::beginTransaction();
-
-            $region->status = Status::Trash;
-            $region->save();
-
-            DB::commit();
+            $Region->delete();
         } catch (\Exception $e) {
-            DB::rollBack();
-
-            return $this->error('Error interno al eliminar la región.', 500, $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Error interno al eliminar el Region.', 'data' => $e->getMessage()], 500);
         }
 
-        return $this->success(null, 'Región eliminada correctamente.');
-    }
-
-    /**
-     * Recupera (reactiva) una región identificada por su id que estaba en trash.
-     */
-    public function restore($id)
-    {
-        $region = Region::find($id);
-
-        if (! $region) {
-            return $this->error('Región no existe', 404);
-        }
-
-        if ($region->status !== Status::Trash) {
-            return $this->error('La región no está eliminada, no es necesario recuperarla.', 422);
-        }
-
-        try {
-            DB::beginTransaction();
-
-            $region->status = Status::Active;
-            $region->save();
-
-            DB::commit();
-        } catch (\Exception $e) {
-            DB::rollBack();
-
-            return $this->error('Error interno al recuperar la región.', 500, $e->getMessage());
-        }
-
-        return $this->success($region, 'Región recuperada correctamente.');
+        return response()->json(['success' => true, 'message' => 'Region eliminado correctamente.', 'data' => null]);
     }
 }
